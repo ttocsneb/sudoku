@@ -90,11 +90,18 @@ export class Sudoku implements Iterable<Array<number>> {
         return this.isValid();
     }
 
-    public findSolutions(find_all = false): Array<Sudoku> {
+    public findSolutions(find = -1, time_limit: number = undefined, start: number = undefined): Array<Sudoku> {
         const solutions: Array<Sudoku> = [];
 
         if (!this.isValid()) {
             return solutions;
+        }
+
+        start = start == undefined ? Date.now() : start;
+        if (time_limit != undefined) {
+            if (Date.now() - start > time_limit) {
+                return solutions;
+            }
         }
 
         const copy = new Sudoku(this.board);
@@ -106,11 +113,11 @@ export class Sudoku implements Iterable<Array<number>> {
                 const options = copy.getOptions(x, y);
                 for (const option of options) {
                     copy.set(x, y, option);
-                    const new_solutions = copy.findSolutions(find_all);
+                    const new_solutions = copy.findSolutions(find, time_limit, start);
                     for (const sol of new_solutions) {
                         solutions.push(sol);
                     }
-                    if (!find_all && solutions.length > 1) {
+                    if (find > 0 && solutions.length >= find) {
                         return solutions;
                     }
                 }
@@ -126,33 +133,75 @@ export class Sudoku implements Iterable<Array<number>> {
         return solutions;
     }
 
-    public makeSolveable(): Sudoku | null {
-        let n_solutions = this.findSolutions(false).length;
-        if (n_solutions == 1) {
-            return this;
-        }
+    public makeSolveable(progress: (progress: number) => void = undefined, time_limit: number = undefined): Sudoku | null {
+        let n_solutions = this.findSolutions(2).length;
         if (n_solutions == 0) {
             return null;
         }
+        const start = Date.now();
+        function hasTimeRanOut(): boolean {
+            if (time_limit != undefined) {
+                return Date.now() - start > time_limit;
+            }
+            return false;
+        }
 
-        const copy = new Sudoku(this.board);
-
-        // Add random numbers until a starting position with a valid solution is found
-        while (n_solutions != 1) {
-            const x = Math.floor(Math.random() * 9);
-            const y = Math.floor(Math.random() * 9);
-
-            if (copy.get(x, y) == 0) {
-                copy.set(x, y, Math.floor(Math.random() * 9) + 1);
-                n_solutions = copy.findSolutions(false).length;
-                if (n_solutions == 0) {
-                    copy.set(x, y, 0);
-                    continue;
-                } 
-                if (n_solutions == 1) {
-                    break;
+        let copy = new Sudoku(this.board);
+        if (n_solutions > 1) {
+            // Add random numbers until a starting position with a valid solution is found
+            const to_add: Array<{x: number, y: number}> = [];
+            for (let y = 0; y < 9; y++) {
+                for (let x = 0; x < 9; x++) {
+                    if (copy.get(x, y) != 0) continue;
+                    to_add.push({x, y});
                 }
             }
+
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+            let iters = Math.min(to_add.length, 81);
+            const max_iter = iters;
+            while (iters > 0) {
+                to_add.sort(() => Math.random() - 0.5);
+
+                for (const p of to_add) {
+                    if (iters <= 0) break;
+                    if (copy.get(p.x, p.y) != 0) continue;
+
+                    numbers.sort(() => Math.random() - 0.5);
+                    for (const num of numbers) {
+                        if (hasTimeRanOut()) {
+                            return;
+                        }
+                        copy.set(p.x, p.y, num);
+                        n_solutions = copy.findSolutions(2, 2000).length;
+                        if (n_solutions == 0) {
+                            copy.set(p.x, p.y, 0);
+                            continue;
+                        } 
+                        break;
+                    }
+                    if (n_solutions == 1) {
+                        iters = 0;
+                        break;
+                    }
+                    iters--;
+                    if (progress != undefined) {
+                        progress((max_iter - iters) / max_iter * 0.5);
+                    }
+                    // console.log(`${max_iter - iters} / ${max_iter}`);
+                }
+            }
+        }
+        if (progress != undefined) {
+            progress(0.5);
+        }
+        console.log("Done");
+
+        if (n_solutions != 1) {
+            const found_solutions = copy.findSolutions(10, 2000);
+            // console.log(`found ${found_solutions.length}`);
+            copy = found_solutions[Math.floor(Math.random() * found_solutions.length)];
         }
 
         const to_remove: Array<{x: number, y: number}> = [];
@@ -165,12 +214,21 @@ export class Sudoku implements Iterable<Array<number>> {
         }
         to_remove.sort(() => Math.random() - 0.5);
 
+        let i = 0;
         for (const point of to_remove) {
+            if (hasTimeRanOut()) {
+                return;
+            }
+            i++;
+            // console.log(`${i} / ${to_remove.length}`);
             const val = copy.get(point.x, point.y);
             copy.set(point.x, point.y, 0);
-            n_solutions = copy.findSolutions(false).length;
+            n_solutions = copy.findSolutions(2, 2000).length;
             if (n_solutions > 1) {
                 copy.set(point.x, point.y, val);
+            }
+            if (progress != undefined) {
+                progress(0.5 + (i / to_remove.length) * 0.5);
             }
         }
 

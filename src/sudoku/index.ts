@@ -21,8 +21,8 @@ export function parse(base64: string): Sudoku {
         values.push((byte & 0xF0) >> 4);
         values.push(byte & 0xF);
     }
-    console.log("Reading:");
-    console.log(values);
+    // console.log("Reading:");
+    // console.log(values);
 
     const sudoku = new Sudoku();
     let row = -1;
@@ -41,7 +41,7 @@ export function parse(base64: string): Sudoku {
             col += values[i];
             i++;
         }
-        console.log(`Setting [${col},${row}] = ${values[i]}`);
+        // console.log(`Setting [${col},${row}] = ${values[i]}`);
         sudoku.set(col, row, values[i]);
         col++;
         nums_left -= 1;
@@ -73,8 +73,8 @@ export function dump(sudoku: Sudoku): string {
         }
     }
 
-    console.log("Writing:");
-    console.log(vals);
+    // console.log("Writing:");
+    // console.log(vals);
 
     let binary = ''
     for (let i = 0; i < vals.length; i += 2) {

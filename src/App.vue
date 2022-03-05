@@ -15,8 +15,6 @@ import Sudoku from './components/Sudoku.vue';
 })
 export default class App extends Vue {
 }
-
-// FhPyjwQx8JJRMHFvNznwETKQXwUzNPGGnxkWFw==
 </script>
 
 

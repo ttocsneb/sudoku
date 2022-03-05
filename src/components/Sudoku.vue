@@ -9,17 +9,20 @@
                 </td>
             </tr>
         </table>
-        <p v-if="message">{{ message }}</p>
+        <p v-if="message" ref="message">{{ message }}</p>
         <div v-if="solvable">
             <h4>Share this puzzle!</h4>
-            <p v-if="solutionCode != generatedCode"><a :href="`?c=${generatedCode}`">{{ origin }}/?c={{ generatedCode }}</a></p>
-            <p>Solution: <a :href="`?c=${solutionCode}`">{{ origin }}/?c={{ solutionCode }}</a></p>
+            <p v-if="solutionCode != generatedCode"><small><a :href="`?c=${generatedCode}`">{{ origin }}/sudoku/?c={{ generatedCode }}</a></small></p>
+            <img v-if="solutionCode != generatedCode" :src="`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${origin}/sudoku/?c=${generatedCode}`" />
+            <p><small>Solution: <a :href="`?c=${solutionCode}`">{{ origin }}/sudoku/?c={{ solutionCode }}</a></small></p>
+            <img :src="`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${origin}/sudoku/?c=${solutionCode}`" />
         </div>
         <form v-if="selected != null" @submit.prevent="onSubmit" class="no-print">
             <input ref="valueSelect" type="number" placeholder="Value" v-model="value_select" />
             <button type="submit">Save</button>
         </form>
         <button class="no-print" @click="makeSolveable">Make Solveable</button>
+        <button class="no-print" @click="clear">Clear</button>
     </div>
 </template>
 
@@ -41,7 +44,7 @@ export default class extends Vue {
     solutionCode = '';
     message = null;
     selected: Array<number> | null = null;
-    value_select = 0;
+    value_select = '';
     solvable = false;
 
     constructor() {
@@ -89,8 +92,8 @@ export default class extends Vue {
         this.message = "Verifying this puzzle...";
         const sudoku = this.convertToSudoku();
         setTimeout(() => {
-            const solutions = sudoku.findSolutions(false);
-            console.log(`Found ${solutions.length} solutions`);
+            const solutions = sudoku.findSolutions(2);
+            // console.log(`Found ${solutions.length} solutions`);
             if (solutions.length > 1) {
                 this.message = `There are too many solutions to this puzzle!`;
                 this.solvable = false;
@@ -113,27 +116,31 @@ export default class extends Vue {
         }
         this.selected = [y, x];
         this.cells[y][x].selected = true;
-        this.value_select = this.cells[y][x].value;
+        this.value_select = '';
         setTimeout(() => {
             (this.$refs.valueSelect as HTMLInputElement).focus();
         }, 10);
-        console.log(`(${y}, ${x}) was clicked`);
+        // console.log(`(${y}, ${x}) was clicked`);
     }
 
     onSubmit(): void {
         let s = this.selected;
-        const changed = this.cells[s[0]][s[1]].value != Number(this.value_select);
-        this.cells[s[0]][s[1]].value = Number(this.value_select);
+        const val = Number(this.value_select);
         this.cells[s[0]][s[1]].selected = false;
         this.selected = null;
-        if (changed) this.onSudokuChanged();
+        if (val >= 0 && val <= 9) {
+            this.cells[s[0]][s[1]].value = val;
+            this.onSudokuChanged();
+        }
     }
 
     makeSolveable(): void {
         this.message = "Making the current starting position solveable..";
         const sudoku = this.convertToSudoku();
         setTimeout(() => {
-            const solution = sudoku.makeSolveable();
+            const solution = sudoku.makeSolveable((progress) => {
+                console.log(`Progress: ${Math.round(progress * 100)}%`);
+            }, 15000);
             if (solution == undefined) {
                 this.message = "Could not make a valid starting position";
                 return;
@@ -162,6 +169,12 @@ export default class extends Vue {
         } catch(error) {
             this.message = "Invalid Sudoku Code";
         }
+    }
+
+    clear(): void {
+        const sudoku = new Sudoku();
+        this.loadFromSudoku(sudoku);
+        this.onSudokuChanged();
     }
 
     loadFromSudoku(sudoku: Sudoku): void {
