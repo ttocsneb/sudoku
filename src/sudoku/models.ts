@@ -196,7 +196,7 @@ export class Sudoku implements Iterable<Array<number>> {
         if (progress != undefined) {
             progress(0.5);
         }
-        console.log("Done");
+        // console.log("Done");
 
         if (n_solutions != 1) {
             const found_solutions = copy.findSolutions(10, 2000);
@@ -217,7 +217,7 @@ export class Sudoku implements Iterable<Array<number>> {
         let i = 0;
         for (const point of to_remove) {
             if (hasTimeRanOut()) {
-                return;
+                return copy;
             }
             i++;
             // console.log(`${i} / ${to_remove.length}`);
